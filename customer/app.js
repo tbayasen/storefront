@@ -19,12 +19,12 @@ var connection = mysql.createConnection({
 connection.connect(function (err) {
     if (err) throw err;
     console.log("connected as id " + connection.threadId + "\n");
-    logPokémon();
+    displayShop();
 });
 
-function logPokémon() {
-    connection.query("SELECT * FROM pokémon_shop", function (err, results) {
-        if (err) throw err;
+function displayShop() {
+    connection.query('SELECT * FROM pokémon_list', function (err, results) {
+        if (err){console.log(err)};
         const pokémonTable = new Table({
             head: ['ID', 'Name', 'Type', 'Price', 'Quantity'],
             chars: {
@@ -35,15 +35,28 @@ function logPokémon() {
             }
         });
         for (var i = 0; i < results.length; i++) {
-            pokémonTable.push([results[i].id,
+            pokémonTable.push([results[i].poké_id,
             results[i].pokémon_name,
             results[i].pokémon_type,
             results[i].price,
             results[i].store_quantity]);
         };
         console.log(pokémonTable.toString());
-        promptUser();
-    })
+        inquirer.prompt([
+            {
+                name: 'shop',
+                type: 'confirm',
+                message: 'Would you like to adopt a Pokémon?'
+            }
+        ]).then(answers => {
+            if (answers.shop === true) {
+                promptUser();
+            }
+            else {
+                connection.end();
+            }
+        })
+    });
 }
 
 function promptUser() {
@@ -60,21 +73,25 @@ function promptUser() {
             message: 'How many would you like to "adopt"?',
             filter: Number
         }
-    ]).then(function (response) {
-        var pokémonChoice = response.ID;
-        var pokémonQuantity = response.Quantity;
+    ]).then(answers => {
+        var pokémonChoice = answers.ID;
+        var pokémonQuantity = answers.Quantity;
+        console.log(pokémonChoice)
+        console.log(pokémonQuantity)
         calcOrder(pokémonChoice, pokémonQuantity);
     });
 }
 
 function calcOrder(pokémonChoice, pokémonQuantity) {
-    connection.query("SELECT * FROM pokémon_shop WHERE id = " + pokémonChoice, function (err, results) {
-        if (err) throw err;
+    connection.query('SELECT * FROM pokémon_list WHERE poké_id = ' + pokémonChoice , function (err, results) {
+        console.log(results[0]);
+        if (err){console.log(err)};
         if (pokémonQuantity <= results[0].store_quantity) {
+            const totalPrice = results[0].price * pokémonQuantity;
             console.log("Congratulations! You are now the proud kidnapper of " + pokémonQuantity + " Pokémon!")
-            connection.query("UPDATE products SET store_quantity = store_quantity " + pokémonQuantity + " WHERE id = " + pokémonChoice);
-            logPokémon();
+            console.log("Your total cost is: " + totalPrice);
+            connection.query("UPDATE pokémon_list SET store_quantity = store_quantity - " + pokémonQuantity + " WHERE poké_id = " + pokémonChoice);
+            displayShop();
         }
-        connection.end();
     });
 }
