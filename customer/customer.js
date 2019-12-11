@@ -46,7 +46,7 @@ function displayShop() {
             {
                 name: 'shop',
                 type: 'confirm',
-                message: 'Would you like to adopt a Pokémon?'
+                message: 'Welcome to the shop! Is there anything that catches your eye?'
             }
         ]).then(answers => {
             if (answers.shop === true) {

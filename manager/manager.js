@@ -18,43 +18,10 @@ var connection = mysql.createConnection({
 
 connection.connect(function (err) {
     if (err) throw err;
-    console.log("connected as id " + connection.threadId + "\n");
+    // console.log("connected as id " + connection.threadId + "\n");
 });
 
-function runManager() {
-    inquirer.prompt([
-        {
-            name: 'menu',
-            type: 'list',
-            message: 'What would you like to do today?',
-            choices: ['View Products for Sale',
-                'View Low Inventory',
-                'Add to Inventory',
-                'Add new Pokémon'],
-            filter: function (val) {
-                if (val === 'View Products for Sale') {
-                    return 'shop';
-                }
-                else if (val === 'View Low Inventory') {
-                    return 'lowInv';
-                }
-                else if (val === 'Add to Inventory') {
-                    return 'addInv';
-                }
-                else if (val === 'Add new Pokémon') {
-                    return 'newPokémon'
-                }
-            }
-        }
-    ]).then(answers => {
-        //console.log('You have selected: ' + answers.menu);
-        if (answers.menu === 'shop') {
-            viewStore();
-        }
-    });
-}
-
-function viewStore() {
+function displayAll() {
     connection.query('SELECT * FROM pokémon_list', function (err, results) {
         if (err) { console.log(err) };
         const pokémonTable = new Table({
@@ -73,77 +40,160 @@ function viewStore() {
             results[i].price,
             results[i].store_quantity]);
         };
-        console.log(pokémonTable.toString());
-        inquirer.prompt([
-            {
-                name: 'shop',
-                type: 'confirm',
-                message: 'Welcome to the shop! Is there anything that catches your eye?'
-            }
-        ]).then(answers => {
-            if (answers.shop === true) {
-                promptUser();
-            }
-            else {
-                connection.end();
-            }
-        });
+        console.log('\n' + pokémonTable.toString());
     });
-    connection.end();
 }
 
-function promptUser() {
+function runManager() {
+    inquirer.prompt([
+        {
+            name: 'menu',
+            type: 'list',
+            message: 'What would you like to do today?',
+            choices: [
+                'View Pokémon for Sale',
+                'View Low Inventory',
+                'Add to Inventory',
+                'Add new Pokémon',
+                'Exit'
+            ],
+        }
+    ]).then(answers => {
+        console.log('You have selected: ' + answers.menu);
+        if (answers.menu === 'View Pokémon for Sale') {
+            viewStore();
+        }
+        else if
+            (answers.menu === 'View Low Inventory') {
+            viewLow();
+        }
+        else if
+            (answers.menu === 'Add to Inventory') {
+            promptBreed();
+        }
+        else if
+            (answers.menu === 'Add new Pokémon') {
+            promptNew();
+        }
+        else if
+            (answers.menu === 'Exit') {
+                connection.end();
+            }
+    });
+}
+
+function returnMenu() {
+    inquirer.prompt([
+        {
+            name: 'back',
+            type: 'confirm',
+            message: 'Would you like to go back to the main menu?'
+        }
+    ]).then(answers => {
+        if (answers.back === true) {
+            runManager();
+        }
+        else {
+            connection.end();
+        }
+    })   
+}
+
+function viewStore() {
+    displayAll();
+    returnMenu();
+}
+
+function viewLow() {
+    connection.query('SELECT * FROM pokémon_list WHERE store_quantity < 10', function (err, results) {
+        if (err) { console.log(err) };
+        const lowTable = new Table({
+            head: ['ID', 'Name', 'Type', 'Price', 'Quantity'],
+            chars: {
+                'top': '═', 'top-mid': '╤', 'top-left': '╔', 'top-right': '╗'
+                , 'bottom': '═', 'bottom-mid': '╧', 'bottom-left': '╚', 'bottom-right': '╝'
+                , 'left': '║', 'left-mid': '╟', 'mid': '─', 'mid-mid': '┼'
+                , 'right': '║', 'right-mid': '╢', 'middle': '│'
+            }
+        });
+        for (var i = 0; i < results.length; i++) {
+            lowTable.push([results[i].poké_id,
+            results[i].pokémon_name,
+            results[i].pokémon_type,
+            results[i].price,
+            results[i].store_quantity]);
+        };
+        console.log('\n' + lowTable.toString());
+        returnMenu();
+    });
+}
+
+function promptBreed() {
     inquirer.prompt([
         {
             name: 'ID',
             type: 'input',
-            message: 'Please enter the ID of the Pokémon you would like to "adopt"',
+            message: 'Please enter the ID of the Pokémon you would like to breed:',
             filter: Number
         },
         {
             name: 'Quantity',
             type: 'input',
-            message: 'How many would you like to "adopt"?',
+            message: 'How many would you like to breed?',
             filter: Number
         }
     ]).then(answers => {
-        var pokémonChoice = answers.ID;
-        var pokémonQuantity = answers.Quantity;
-        console.log(pokémonChoice)
-        console.log(pokémonQuantity)
-        calcOrder(pokémonChoice, pokémonQuantity);
+        var breedChoice = answers.ID;
+        var breedQuantity = answers.Quantity;
+        console.log(breedChoice)
+        console.log(breedQuantity)
+        breedPokémon(breedChoice, breedQuantity);
     });
 }
 
-function calcOrder(pokémonChoice, pokémonQuantity) {
-    connection.query('SELECT * FROM pokémon_list WHERE poké_id = ' + pokémonChoice, function (err, results) {
-        console.log(results[0]);
-        if (err) { console.log(err) };
-        if (pokémonQuantity <= results[0].store_quantity) {
-            const totalPrice = results[0].price * pokémonQuantity;
-            console.log("Congratulations! You are now the proud kidnapper of " + pokémonQuantity + " Pokémon!")
-            console.log("Your total cost is: " + totalPrice);
-            connection.query("UPDATE pokémon_list SET store_quantity = store_quantity - " + pokémonQuantity + " WHERE poké_id = " + pokémonChoice);
-            displayShop();
+function breedPokémon(breedChoice, breedQuantity) {
+    connection.query('SELECT * FROM pokémon_list WHERE poké_id = ' + breedChoice, function (err, results) {
+        if (err) throw err;
+        connection.query('UPDATE pokémon_list SET store_quantity = store_quantity + ' + breedQuantity + ' WHERE poké_id = ' + breedChoice)
+        viewStore();
+    })
+}
+
+function promptNew() {
+    inquirer.prompt([
+        {
+            name: 'newName',
+            type: 'input',
+            message: 'Enter the name of the pokémon:'
+        },
+        {
+            name: 'newType',
+            type: 'input',
+            message: 'Enter the type of the pokémon:'
+        },
+        {
+            name: 'newPrice',
+            type: 'input',
+            message: 'How much would you like to sell this pokémon for?'
+        },
+        {
+            name: 'newQuantity',
+            type: 'input',
+            message: 'How many of these would you like to sell?',
+            filter: Number
         }
-        else {
-            console.log("Sorry, we don't have enough pokémon to fill this order!")
-            inquirer.prompt([
-                {
-                    name: 'retry',
-                    type: 'confirm',
-                    message: 'Would try adopting again?'
-                }
-            ]).then(answers => {
-                if (answers.retry === true) {
-                    promptUser();
-                }
-                else {
-                    connection.end();
-                }
-            })
-        }
+    ]).then(answers => {
+        var newName = answers.newName;
+        var newType = answers.newType;
+        var newPrice = answers.newPrice;
+        var newQuantity = answers.newQuantity;
+        newPokémon(newName, newType, newPrice, newQuantity);
     });
+}
+
+function newPokémon(newName, newType, newPrice, newQuantity) {
+    connection.query('INSERT INTO pokémon_list (pokémon_name, pokémon_type, price, store_quantity) VALUES ' + '("' + newName + '","' + newType + '","' + newPrice + '","' + newQuantity + '")');
+    viewStore();
 }
 
 runManager();
