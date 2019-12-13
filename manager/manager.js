@@ -22,26 +22,31 @@ connection.connect(function (err) {
 });
 
 function displayAll() {
-    connection.query('SELECT * FROM pokémon_list', function (err, results) {
-        if (err) { console.log(err) };
-        const pokémonTable = new Table({
-            head: ['ID', 'Name', 'Type', 'Price', 'Quantity'],
-            chars: {
-                'top': '═', 'top-mid': '╤', 'top-left': '╔', 'top-right': '╗'
-                , 'bottom': '═', 'bottom-mid': '╧', 'bottom-left': '╚', 'bottom-right': '╝'
-                , 'left': '║', 'left-mid': '╟', 'mid': '─', 'mid-mid': '┼'
-                , 'right': '║', 'right-mid': '╢', 'middle': '│'
-            }
+    return new Promise(function(resolve,reject){
+        connection.query('SELECT * FROM pokémon_list', function (err, results) {
+            if (err) { console.log(err) };
+            const pokémonTable = new Table({
+                head: ['ID', 'Name', 'Type', 'Price', 'Quantity'],
+                chars: {
+                    'top': '═', 'top-mid': '╤', 'top-left': '╔', 'top-right': '╗'
+                    , 'bottom': '═', 'bottom-mid': '╧', 'bottom-left': '╚', 'bottom-right': '╝'
+                    , 'left': '║', 'left-mid': '╟', 'mid': '─', 'mid-mid': '┼'
+                    , 'right': '║', 'right-mid': '╢', 'middle': '│'
+                }
+            });
+            for (var i = 0; i < results.length; i++) {
+                pokémonTable.push([results[i].poké_id,
+                results[i].pokémon_name,
+                results[i].pokémon_type,
+                results[i].price,
+                results[i].store_quantity]);
+            };
+            console.log('\n' + pokémonTable.toString());
+
+            resolve('done');
         });
-        for (var i = 0; i < results.length; i++) {
-            pokémonTable.push([results[i].poké_id,
-            results[i].pokémon_name,
-            results[i].pokémon_type,
-            results[i].price,
-            results[i].store_quantity]);
-        };
-        console.log('\n' + pokémonTable.toString());
-    });
+    })
+
 }
 
 function runManager() {
@@ -99,9 +104,17 @@ function returnMenu() {
     })   
 }
 
+function dumbConsole() {
+    console.log('something \n\n\n\n\n')
+}
+
 function viewStore() {
-    displayAll();
-    returnMenu();
+    displayAll().then(function(value){
+        returnMenu();
+    })
+    .catch(function(err){
+        console.log(err)
+    })
 }
 
 function viewLow() {
